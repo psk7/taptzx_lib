@@ -108,8 +108,10 @@ func OpenFile(fileName string) (*context, error) {
 }
 
 func (c *context) GenerateAudioTo(writer io.Writer, freq int, trace func(string)) {
+	bb := createABuf(&writer)
+
 	stream := astream{freq: uint64(freq), cpuFreq: 3500000, currentLevel: false}
-	stream.wr = bufio.NewWriter(writer)
+	stream.wr = bufio.NewWriter(bb)
 
 	timeBase := getLCM(uint32(stream.freq), uint32(stream.cpuFreq))
 	stream.cpuTimeBase = timeBase / stream.cpuFreq
@@ -128,4 +130,6 @@ func (c *context) GenerateAudioTo(writer io.Writer, freq int, trace func(string)
 	}
 
 	stream.wr.Flush()
+
+	bb.WaitComplete()
 }

@@ -77,7 +77,7 @@ func openTZX(file *os.File) (blocks *list.List) {
 		cnt += 1
 	}
 
-	b.PushBack(createPause(20000))
+	b.PushBack(createPause(2000))
 
 	return b
 }

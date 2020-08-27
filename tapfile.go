@@ -25,7 +25,7 @@ func openTAP(file *os.File) (blocks *list.List) {
 		cnt++
 	}
 
-	b.PushBack(createPause(20000))
+	b.PushBack(createPause(2000))
 
 	return b
 }
