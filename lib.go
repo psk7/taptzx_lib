@@ -14,6 +14,9 @@ import (
 type block interface {
 	getDescription() string
 	generate(stream audioStream)
+
+	getBlock24() *tzx_block_24
+	getBlock25() *tzx_block_25
 }
 
 type baseBlock struct {
@@ -40,7 +43,9 @@ type astream struct {
 }
 
 type context struct {
-	blocks *list.List
+	blocks      *list.List
+	loopLabel   *list.Element
+	loopCounter int
 }
 
 func (b *baseBlock) getDescription() string {
@@ -48,6 +53,14 @@ func (b *baseBlock) getDescription() string {
 }
 
 func (b *baseBlock) generate(stream audioStream) {
+}
+
+func (b *baseBlock) getBlock24() *tzx_block_24 {
+	return nil
+}
+
+func (b *baseBlock) getBlock25() *tzx_block_25 {
+	return nil
 }
 
 func (s *astream) appendLevel(len int, lvl int16) {
@@ -163,8 +176,31 @@ func (c *context) GenerateAudioTo(writer io.Writer, freq int, sync bool, trace f
 	stream.cpuTimeBase = timeBase / stream.cpuFreq
 	stream.sndTimeBase = timeBase / stream.freq
 
-	for e := c.blocks.Front(); e != nil; e = e.Next() {
+	for e := c.blocks.Front(); e != nil; {
 		b := e.Value.(block)
+
+		loopStart := b.getBlock24()
+		if loopStart != nil {
+			// loop start
+			e = e.Next()
+			c.loopLabel = e
+			c.loopCounter = int(loopStart.loops_count)
+			continue
+		}
+
+		loopEnd := b.getBlock25()
+		if loopEnd != nil {
+			// loop end
+			c.loopCounter -= 1
+
+			if c.loopCounter == 0 {
+				e = e.Next()
+				continue
+			} else {
+				e = c.loopLabel
+				continue
+			}
+		}
 
 		dscr := b.getDescription()
 
@@ -173,6 +209,8 @@ func (c *context) GenerateAudioTo(writer io.Writer, freq int, sync bool, trace f
 		}
 
 		b.generate(&stream)
+
+		e = e.Next()
 	}
 
 	stream.wr.Flush()

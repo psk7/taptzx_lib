@@ -40,6 +40,16 @@ type tzx_block_13 struct {
 	pulses []uint16
 }
 
+type tzx_block_24 struct {
+	baseBlock
+
+	loops_count int16
+}
+
+type tzx_block_25 struct {
+	baseBlock
+}
+
 func createTAPBlock(rdr *bufio.Reader, num int) *tzx_block_11 {
 	b := tzx_block_11{
 		pilotPulseLen: 2168,
@@ -207,10 +217,36 @@ func createBlock30(rdr *bufio.Reader, num int) *baseBlock {
 	return &baseBlock{description: fmt.Sprintf("TZX block #%v (0x30, Text description) - %v", num, s)}
 }
 
+func createBlock24(rdr *bufio.Reader, num int) *tzx_block_24 {
+	b := tzx_block_24{}
+
+	_ = binary.Read(rdr, binary.LittleEndian, &b.loops_count)
+
+	b.description = fmt.Sprintf("TZX block #%v (0x24, Loop start %v", num, b.loops_count)
+
+	return &b
+}
+
+func createBlock25(rdr *bufio.Reader, num int) *tzx_block_25 {
+	b := tzx_block_25{}
+
+	b.description = fmt.Sprintf("TZX block #%v (0x24, Loop end", num)
+
+	return &b
+}
+
 func createBlock32(rdr *bufio.Reader, num int) *baseBlock {
 	var l uint16
 	_ = binary.Read(rdr, binary.LittleEndian, &l)
 	rdr.Discard(int(l))
 
 	return &baseBlock{description: fmt.Sprintf("TZX block #%v (0x32, Archive info)", num)}
+}
+
+func (b *tzx_block_24) getBlock24() *tzx_block_24 {
+	return b
+}
+
+func (b *tzx_block_25) getBlock25() *tzx_block_25 {
+	return b
 }

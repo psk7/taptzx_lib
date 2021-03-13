@@ -64,6 +64,12 @@ func openTZX(file *os.File) (blocks *list.List) {
 		case 0x22:
 			b.PushBack(&baseBlock{description: fmt.Sprintf("TZX block #%v (0x22, Group end)", cnt)})
 
+		case 0x24:
+			b.PushBack(createBlock24(rdr, cnt))
+
+		case 0x25:
+			b.PushBack(createBlock25(rdr, cnt))
+
 		case 0x30:
 			b.PushBack(createBlock30(rdr, cnt))
 
