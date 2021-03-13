@@ -1,11 +1,8 @@
 package tzx
 
 import (
-	"bufio"
 	"container/list"
 	"errors"
-	"io"
-	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -28,18 +25,20 @@ type audioStream interface {
 	addPause(lenMs int)
 }
 
+type samplesWriter interface {
+	writeSample(sample int16)
+	flush()
+}
+
 type astream struct {
-	cpuFreq         uint64
-	freq            uint64
-	cpuTimeStamp    uint64
-	sndTimeStamp    uint64
-	currentLevel    bool
-	currentVol      int16
-	lastRiseSamples uint64
-	maxRiseSamples  uint64
-	cpuTimeBase     uint64
-	sndTimeBase     uint64
-	wr              *bufio.Writer
+	cpuFreq      uint64
+	freq         uint64
+	cpuTimeStamp uint64
+	sndTimeStamp uint64
+	currentLevel bool
+	cpuTimeBase  uint64
+	sndTimeBase  uint64
+	wr           samplesWriter
 }
 
 type context struct {
@@ -66,53 +65,19 @@ func (b *baseBlock) getBlock25() *tzx_block_25 {
 func (s *astream) appendLevel(len int, lvl int16) {
 	s.cpuTimeStamp += uint64(len) * s.cpuTimeBase
 
-	// Emit rise or fall
-	if s.currentVol != lvl {
-		riseSamples := ((s.cpuTimeStamp - s.sndTimeStamp) / s.sndTimeBase) / 2
-
-		if riseSamples > s.maxRiseSamples {
-			riseSamples = s.maxRiseSamples
-		}
-
-		actualRiseSamples := riseSamples
-		if actualRiseSamples > s.lastRiseSamples {
-			actualRiseSamples = s.lastRiseSamples
-		}
-
-		s.lastRiseSamples = riseSamples
-
-		if actualRiseSamples > 0 {
-			phase := 0.0
-			phaseStep := math.Pi / float64(actualRiseSamples)
-			amp := float64(int32(lvl) - int32(s.currentVol))
-
-			for i := 0; i < int(actualRiseSamples); i++ {
-				v := int16((-math.Cos(phase)+1)/2*amp + float64(s.currentVol))
-				s.wr.WriteByte(byte(v % 256))
-				s.wr.WriteByte(byte(v >> 8))
-
-				phase += phaseStep
-
-				s.sndTimeStamp += s.sndTimeBase
-			}
-		}
-	}
-
-	// Emit sustain
 	for s.sndTimeStamp < s.cpuTimeStamp {
-		s.wr.WriteByte(0)
-		s.wr.WriteByte(byte(lvl >> 8))
+		s.wr.writeSample(lvl)
 		s.sndTimeStamp += s.sndTimeBase
 	}
-
-	s.currentVol = lvl
 }
 
 func (s *astream) addEdge(len int) {
-	lvl := int16(-16384)
+	// Generated samples ALWAYS is 16 bit signed. Levels MUST be LOW:-32767, HIGH:32767
+	// BitstreamWriter will convert its to desired format later
+	lvl := int16(-32767)
 
 	if s.currentLevel {
-		lvl = 16384
+		lvl = 32767
 	}
 
 	s.appendLevel(len, lvl)
@@ -159,18 +124,8 @@ func OpenFile(fileName string) (*context, error) {
 	return &c, nil
 }
 
-func (c *context) GenerateAudioTo(writer io.Writer, freq int, sync bool, trace func(string)) {
-	stream := astream{freq: uint64(freq), cpuFreq: 3500000, currentLevel: false}
-	stream.maxRiseSamples = uint64(float32(0.00015) * float32(freq)) // 150 mkSec
-
-	var bb *aBuf
-
-	if sync {
-		stream.wr = bufio.NewWriter(writer)
-	} else {
-		bb = createABuf(&writer)
-		stream.wr = bufio.NewWriter(bb)
-	}
+func (c *context) GenerateAudioTo(writer samplesWriter, freq int, trace func(string)) {
+	stream := astream{freq: uint64(freq), cpuFreq: 3500000, currentLevel: false, wr: writer}
 
 	timeBase := getLCM(uint32(stream.freq), uint32(stream.cpuFreq))
 	stream.cpuTimeBase = timeBase / stream.cpuFreq
@@ -195,11 +150,10 @@ func (c *context) GenerateAudioTo(writer io.Writer, freq int, sync bool, trace f
 
 			if c.loopCounter == 0 {
 				e = e.Next()
-				continue
 			} else {
 				e = c.loopLabel
-				continue
 			}
+			continue
 		}
 
 		dscr := b.getDescription()
@@ -213,9 +167,5 @@ func (c *context) GenerateAudioTo(writer io.Writer, freq int, sync bool, trace f
 		e = e.Next()
 	}
 
-	stream.wr.Flush()
-
-	if bb != nil {
-		bb.WaitComplete()
-	}
+	writer.flush()
 }
