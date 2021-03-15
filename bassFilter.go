@@ -51,7 +51,7 @@ func CreateBassFilter(freq int, chain samplesWriter) samplesWriter {
 }
 
 func (w *bassFilter) writeSample(sample int16) {
-	in := float64(sample) / 32768.
+	in := float64(sample) / MaxSampleValue
 
 	out := (w.b0*in + w.b1*w.xn1 + w.b2*w.xn2 - w.a1*w.yn1 - w.a2*w.yn2) / w.a0
 	w.xn2 = w.xn1
@@ -67,7 +67,7 @@ func (w *bassFilter) writeSample(sample int16) {
 		out = -1
 	}
 
-	sample = int16(out * 32767)
+	sample = int16(out * MaxSampleValue)
 
 	w.writer.writeSample(sample)
 }

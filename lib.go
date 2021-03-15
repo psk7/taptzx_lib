@@ -8,6 +8,8 @@ import (
 	"strings"
 )
 
+const MaxSampleValue = 32767
+
 type block interface {
 	getDescription() string
 	generate(stream audioStream)
@@ -74,10 +76,10 @@ func (s *astream) appendLevel(len int, lvl int16) {
 func (s *astream) addEdge(len int) {
 	// Generated samples ALWAYS is 16 bit signed. Levels MUST be LOW:-32767, HIGH:32767
 	// BitstreamWriter will convert its to desired format later
-	lvl := int16(-32767)
+	lvl := int16(-MaxSampleValue)
 
 	if s.currentLevel {
-		lvl = 32767
+		lvl = -lvl
 	}
 
 	s.appendLevel(len, lvl)

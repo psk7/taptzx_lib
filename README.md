@@ -16,7 +16,7 @@ Library for TAP and TZX (ZX Spectrum tape image) files decoding to audio
     	sw := tzx.CreateBitstreamWriter(<bits-per-sample>, target_stream)
 
 		// Optional, apply some audio stream filters to pipeline
-		sw = tzx.CreateBoostFilter(freq, sw)
+		sw = tzx.CreateBassFilter(freq, sw)
 
 		// Generate audio stream
     	file.GenerateAudioTo(sw, freq,
