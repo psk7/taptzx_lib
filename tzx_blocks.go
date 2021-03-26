@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"math"
 )
 
 type tzx_block_11 struct {
@@ -26,6 +27,14 @@ type tzx_block_12 struct {
 
 	pulselen uint16
 	pulses   uint16
+}
+
+type tzx_block_19 struct {
+	baseBlock
+
+	data []*symdef
+
+	tailMs uint16
 }
 
 type tzx_block_20 struct {
@@ -177,6 +186,127 @@ func createBlock14(rdr *bufio.Reader, num int) *tzx_block_11 {
 	io.ReadFull(rdr, b.data)
 
 	b.description = fmt.Sprintf("TZX block #%v (0x14, Pure Data) size = %v, tail = %v", num, dl, b.tailMs)
+
+	return &b
+}
+
+type symdef struct {
+	t uint8
+	d []uint16
+}
+
+type bitReader struct {
+	src    io.Reader
+	bitPos int8
+	data   byte
+}
+
+func createBitReader(rdr io.Reader) *bitReader {
+	return &bitReader{src: rdr, bitPos: -1, data: 0}
+}
+
+func (r *bitReader) read() uint8 {
+	if r.bitPos < 0 {
+		_ = binary.Read(r.src, binary.LittleEndian, &r.data)
+		r.bitPos = 7
+	}
+
+	v := r.data & (1 << r.bitPos)
+	r.bitPos--
+
+	if v != 0 {
+		v = 1
+	}
+
+	return v
+}
+
+func (r *bitReader) readBits(bits uint8) uint8 {
+	var v uint8
+	var i uint8
+
+	v = 0
+	i = 0
+
+	for ; i < bits; i++ {
+		v <<= 1
+		v |= r.read()
+	}
+
+	return v
+}
+
+func readSymDefs(r io.Reader, c uint8, p uint8) []symdef {
+	pp := make([]symdef, c)
+
+	var i uint8
+	for i = 0; i < c; i++ {
+		s := symdef{d: make([]uint16, p)}
+
+		_ = binary.Read(r, binary.LittleEndian, &s.t)
+		_ = binary.Read(r, binary.LittleEndian, &s.d)
+
+		pp[i] = s
+	}
+
+	return pp
+}
+
+func createBlock19(rdr *bufio.Reader, num int) *tzx_block_19 {
+	b := tzx_block_19{}
+
+	var totalBlockLength uint32
+
+	_ = binary.Read(rdr, binary.LittleEndian, &totalBlockLength)
+	_ = binary.Read(rdr, binary.LittleEndian, &b.tailMs)
+
+	var totp uint32
+	var npp uint8
+	var asp uint8
+	var totd uint32
+	var npd uint8
+	var asd uint8
+	_ = binary.Read(rdr, binary.LittleEndian, &totp)
+	_ = binary.Read(rdr, binary.LittleEndian, &npp)
+	_ = binary.Read(rdr, binary.LittleEndian, &asp)
+	_ = binary.Read(rdr, binary.LittleEndian, &totd)
+	_ = binary.Read(rdr, binary.LittleEndian, &npd)
+	_ = binary.Read(rdr, binary.LittleEndian, &asd)
+
+	pd := make([]*symdef, 0)
+
+	if totp != 0 {
+		syms := readSymDefs(rdr, asp, npp)
+
+		var i uint32
+		for i = 0; i < totp; i++ {
+			var symnum uint8
+			var symcnt uint16
+			_ = binary.Read(rdr, binary.LittleEndian, &symnum)
+			_ = binary.Read(rdr, binary.LittleEndian, &symcnt)
+			for ; symcnt > 0; symcnt-- {
+				pd = append(pd, &syms[symnum])
+			}
+		}
+	}
+
+	if totd != 0 {
+		syms := readSymDefs(rdr, asd, npd)
+
+		nb := uint8(math.Ceil(math.Log2(float64(asd)))) // Symbol bits number
+		//ds := uint32(math.Ceil(float64(nb * totd / 2)))  // Data bytes number
+
+		rd := createBitReader(rdr)
+
+		var i uint32
+		for i = 0; i < totd; i++ {
+			symnum := rd.readBits(nb)
+			pd = append(pd, &syms[symnum])
+		}
+	}
+
+	b.data = pd
+	b.description = fmt.Sprintf("TZX block #%v (0x19, Generalized data block) tail = %v", num, b.tailMs)
 
 	return &b
 }

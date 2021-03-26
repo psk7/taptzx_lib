@@ -58,6 +58,9 @@ func openTZX(file *os.File) (blocks *list.List) {
 		case 0x14:
 			b.PushBack(createBlock14(rdr, cnt))
 
+		case 0x19:
+			b.PushBack(createBlock19(rdr, cnt))
+
 		case 0x21:
 			b.PushBack(createBlock21(rdr, cnt))
 
