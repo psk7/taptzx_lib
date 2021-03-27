@@ -236,10 +236,10 @@ func (r *bitReader) readBits(bits uint8) uint8 {
 	return v
 }
 
-func readSymDefs(r io.Reader, c uint8, p uint8) []symdef {
+func readSymDefs(r io.Reader, c uint16, p uint8) []symdef {
 	pp := make([]symdef, c)
 
-	var i uint8
+	var i uint16
 	for i = 0; i < c; i++ {
 		s := symdef{d: make([]uint16, p)}
 
@@ -262,16 +262,27 @@ func createBlock19(rdr *bufio.Reader, num int) *tzx_block_19 {
 
 	var totp uint32
 	var npp uint8
-	var asp uint8
+	var asp uint16
 	var totd uint32
 	var npd uint8
-	var asd uint8
+	var asd uint16
+	var rb uint8
 	_ = binary.Read(rdr, binary.LittleEndian, &totp)
 	_ = binary.Read(rdr, binary.LittleEndian, &npp)
-	_ = binary.Read(rdr, binary.LittleEndian, &asp)
+	_ = binary.Read(rdr, binary.LittleEndian, &rb)
+	asp = uint16(rb)
+	if asp == 0 {
+		asp = 256
+	}
+
 	_ = binary.Read(rdr, binary.LittleEndian, &totd)
 	_ = binary.Read(rdr, binary.LittleEndian, &npd)
-	_ = binary.Read(rdr, binary.LittleEndian, &asd)
+	_ = binary.Read(rdr, binary.LittleEndian, &rb)
+
+	asd = uint16(rb)
+	if asd == 0 {
+		asd = 256
+	}
 
 	pd := make([]*symdef, 0)
 

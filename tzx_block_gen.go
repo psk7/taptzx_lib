@@ -82,10 +82,10 @@ func (t *tzx_block_19) generate(stream audioStream) {
 				stream.continuePrevious(int(s))
 				break
 			case 2:
-				stream.setLevel(true, int(s))
+				stream.setLevel(false, int(s))
 				break
 			case 3:
-				stream.setLevel(false, int(s))
+				stream.setLevel(true, int(s))
 				break
 			}
 		}
