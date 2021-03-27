@@ -24,6 +24,8 @@ type baseBlock struct {
 
 type audioStream interface {
 	addEdge(len int)
+	continuePrevious(len int)
+	setLevel(level bool, len int)
 	addPause(lenMs int)
 }
 
@@ -73,18 +75,32 @@ func (s *astream) appendLevel(len int, lvl int16) {
 	}
 }
 
-func (s *astream) addEdge(len int) {
+func (s *astream) appendLevelBool(len int, level bool) {
 	// Generated samples ALWAYS is 16 bit signed. Levels MUST be LOW:-32767, HIGH:32767
 	// BitstreamWriter will convert its to desired format later
 	lvl := int16(-MaxSampleValue)
 
-	if s.currentLevel {
+	if level {
 		lvl = -lvl
 	}
 
 	s.appendLevel(len, lvl)
+}
+
+func (s *astream) addEdge(len int) {
+	s.appendLevelBool(len, s.currentLevel)
 
 	s.currentLevel = !s.currentLevel
+}
+
+func (s *astream) continuePrevious(len int) {
+	s.appendLevelBool(len, s.currentLevel)
+}
+
+func (s *astream) setLevel(level bool, len int) {
+	s.appendLevelBool(len, s.currentLevel)
+
+	s.currentLevel = level
 }
 
 func (s *astream) addPause(lenMs int) {

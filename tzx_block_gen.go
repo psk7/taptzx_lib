@@ -61,6 +61,41 @@ func (t *tzx_block_13) generate(stream audioStream) {
 	}
 }
 
+func (t *tzx_block_19) generate(stream audioStream) {
+	for _, v := range t.data {
+		for i, s := range v.d {
+
+			if s == 0 {
+				break
+			}
+
+			if i != 0 {
+				stream.addEdge(int(s))
+				continue
+			}
+
+			switch v.t {
+			case 0:
+				stream.addEdge(int(s))
+				break
+			case 1:
+				stream.continuePrevious(int(s))
+				break
+			case 2:
+				stream.setLevel(false, int(s))
+				break
+			case 3:
+				stream.setLevel(true, int(s))
+				break
+			}
+		}
+	}
+
+	if t.tailMs != 0 {
+		stream.addPause(int(t.tailMs))
+	}
+}
+
 func (t *tzx_block_20) generate(stream audioStream) {
 	stream.addPause(int(t.duration))
 }
