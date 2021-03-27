@@ -91,7 +91,9 @@ func (t *tzx_block_19) generate(stream audioStream) {
 		}
 	}
 
-	stream.addPause(int(t.tailMs))
+	if t.tailMs != 0 {
+		stream.addPause(int(t.tailMs))
+	}
 }
 
 func (t *tzx_block_20) generate(stream audioStream) {
