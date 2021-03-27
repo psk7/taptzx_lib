@@ -3,7 +3,7 @@ package tzx
 import "math"
 
 type bassFilter struct {
-	writer samplesWriter
+	writer SamplesWriter
 
 	samplerate float64
 	bass       float64
@@ -21,7 +21,7 @@ type bassFilter struct {
 	yn2        float64
 }
 
-func CreateBassFilter(freq int, chain samplesWriter) samplesWriter {
+func CreateBassFilter(freq int, chain SamplesWriter) SamplesWriter {
 	w := bassFilter{writer: chain, samplerate: float64(freq)}
 
 	bass := 20. // Bass gain (dB)
@@ -50,7 +50,7 @@ func CreateBassFilter(freq int, chain samplesWriter) samplesWriter {
 	return &w
 }
 
-func (w *bassFilter) writeSample(sample int16) {
+func (w *bassFilter) WriteSample(sample int16) {
 	in := float64(sample) / MaxSampleValue
 
 	out := (w.b0*in + w.b1*w.xn1 + w.b2*w.xn2 - w.a1*w.yn1 - w.a2*w.yn2) / w.a0
@@ -69,8 +69,9 @@ func (w *bassFilter) writeSample(sample int16) {
 
 	sample = int16(out * MaxSampleValue)
 
-	w.writer.writeSample(sample)
+	w.writer.WriteSample(sample)
 }
 
-func (w *bassFilter) flush() {
+func (w *bassFilter) Flush() {
+	w.writer.Flush()
 }

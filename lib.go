@@ -29,9 +29,9 @@ type audioStream interface {
 	addPause(lenMs int)
 }
 
-type samplesWriter interface {
-	writeSample(sample int16)
-	flush()
+type SamplesWriter interface {
+	WriteSample(sample int16)
+	Flush()
 }
 
 type astream struct {
@@ -42,7 +42,7 @@ type astream struct {
 	currentLevel bool
 	cpuTimeBase  uint64
 	sndTimeBase  uint64
-	wr           samplesWriter
+	wr           SamplesWriter
 }
 
 type context struct {
@@ -70,7 +70,7 @@ func (s *astream) appendLevel(len int, lvl int16) {
 	s.cpuTimeStamp += uint64(len) * s.cpuTimeBase
 
 	for s.sndTimeStamp < s.cpuTimeStamp {
-		s.wr.writeSample(lvl)
+		s.wr.WriteSample(lvl)
 		s.sndTimeStamp += s.sndTimeBase
 	}
 }
@@ -104,17 +104,12 @@ func (s *astream) setLevel(level bool, len int) {
 }
 
 func (s *astream) addPause(lenMs int) {
-	ll := uint64(lenMs) - 1
-	msl := s.cpuFreq / 1000
-	s.addEdge(int(msl))
-
-	// if last edge is fall, issue another rise for 2 ms
-	if s.currentLevel {
-		s.addEdge(int(msl) * 2)
-		ll -= 2
+	if lenMs == 0 {
+		return
 	}
 
-	s.appendLevel(int(ll*msl), 0)
+	s.appendLevelBool(int(uint64(lenMs)*(s.cpuFreq/1000)), s.currentLevel)
+
 	s.currentLevel = false
 }
 
@@ -142,7 +137,7 @@ func OpenFile(fileName string) (*context, error) {
 	return &c, nil
 }
 
-func (c *context) GenerateAudioTo(writer samplesWriter, freq int, trace func(string)) {
+func (c *context) GenerateAudioTo(writer SamplesWriter, freq int, trace func(string)) {
 	stream := astream{freq: uint64(freq), cpuFreq: 3500000, currentLevel: false, wr: writer}
 
 	timeBase := getLCM(uint32(stream.freq), uint32(stream.cpuFreq))
@@ -185,5 +180,5 @@ func (c *context) GenerateAudioTo(writer samplesWriter, freq int, trace func(str
 		e = e.Next()
 	}
 
-	writer.flush()
+	writer.Flush()
 }

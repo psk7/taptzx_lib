@@ -7,7 +7,7 @@ type bitstreamWriter struct {
 	writer        io.ByteWriter
 }
 
-func CreateBitstreamWriter(bitsPerSample int, writer io.ByteWriter) samplesWriter {
+func CreateBitstreamWriter(bitsPerSample int, writer io.ByteWriter) SamplesWriter {
 	if bitsPerSample != 8 && bitsPerSample != 16 {
 		panic("bitsPerSample must be 8 or 16")
 	}
@@ -17,7 +17,7 @@ func CreateBitstreamWriter(bitsPerSample int, writer io.ByteWriter) samplesWrite
 	return &w
 }
 
-func (w *bitstreamWriter) writeSample(sample int16) {
+func (w *bitstreamWriter) WriteSample(sample int16) {
 	if w.bitsPerSample == 8 {
 		// 8 bit pcm always unsigned
 		v8 := byte((sample / 256) + 128)
@@ -32,5 +32,5 @@ func (w *bitstreamWriter) writeSample(sample int16) {
 	}
 }
 
-func (w *bitstreamWriter) flush() {
+func (w *bitstreamWriter) Flush() {
 }
